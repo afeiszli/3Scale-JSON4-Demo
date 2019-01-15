@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <!-- Define a traditional camel context here -->
+    <bean
+        class="org.apache.camel.component.servlet.CamelHttpTransportServlet" id="camelHttpTransportServlet"/>
+    <bean
+        class="org.springframework.boot.web.servlet.ServletRegistrationBean" id="servlet">
+        <property name="name" value="CamelServlet"/>
+        <property name="servlet" ref="camelHttpTransportServlet"/>
+        <property name="urlMappings" value="/myfuselab/*"/>
+    </bean>
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <restConfiguration apiContextPath="api-docs" bindingMode="json"
+            component="servlet" contextPath="/myfuselab">
+            <apiProperty key="cors" value="true"/>
+            <apiProperty key="api.title" value="My First Camel API Lab"/>
+            <apiProperty key="api.version" value="1.0.0"/>
+        </restConfiguration>
+        <rest path="/purchaseorder">
+            <get uri="all">
+                <description>Retrieve all customer data</description>
+                <to uri="direct:getallpo"/>
+            </get>
+            <post consumes="application/json" uri="new">
+                <description>Create new purchase order from JSON</description>
+                <to uri="direct:createnewpo"/>
+            </post>
+        </rest>
+        <route id="purchase_order">
+            <from id="direct1" uri="direct:getallpo"/>
+            <to id="_to1" uri="sql:select * from PURCHASE_ORDERS ?dataSource=dataSource"/>
+            <log id="_log1" message="${body}"/>
+        </route>
+        <route id="new_purchase_order" shutdownRoute="Defer">
+            <from id="_from1" uri="direct:createnewpo"/>
+            <to id="validate" uri="json-validator:Purchase-Order-Schema.json"/>
+            <setProperty id="_setProperty1" propertyName="typeCode">
+                <jsonpath>$.purchaseOrder[0].typeCode</jsonpath>
+            </setProperty>
+            <setProperty id="_setProperty2" propertyName="actioncode">
+                <jsonpath>$.purchaseOrder[0].actionCode</jsonpath>
+            </setProperty>
+            <setProperty id="_setProperty3" propertyName="totalAmount">
+                <jsonpath>$.purchaseOrder[0].purchaseOrderHeader.totalAmount</jsonpath>
+            </setProperty>
+            <setProperty id="_setProperty4" propertyName="identifier">
+                <jsonpath>$.purchaseOrder[0].purchaseOrderHeader.identifier</jsonpath>
+            </setProperty>
+<!--             <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES (${property.identifier},${property.typeCode},${property.actionCode},${property.totalAmount})?dataSource=dataSource"/>  -->
+            <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES ('test1','test2','test3',4.0)?dataSource=dataSource"/>
+
+        </route>
+    </camelContext>
+</beans>
