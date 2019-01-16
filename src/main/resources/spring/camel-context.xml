@@ -11,7 +11,12 @@
         <property name="servlet" ref="camelHttpTransportServlet"/>
         <property name="urlMappings" value="/myfuselab/*"/>
     </bean>
-    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+    <camelContext id="camel" streamCache="true" xmlns="http://camel.apache.org/schema/spring">
+	  <properties>
+	    <property key="CamelCachedOutputStreamOutputDirectory" value="/tmp/cachedir"/>
+	    <property key="CamelCachedOutputStreamThreshold" value="1048576"/>
+	    <property key="CamelCachedOutputStreamBufferSize" value="131072"/>
+   	  </properties>
         <restConfiguration apiContextPath="api-docs" bindingMode="json"
             component="servlet" contextPath="/myfuselab">
             <apiProperty key="cors" value="true"/>
@@ -33,24 +38,26 @@
             <to id="_to1" uri="sql:select * from PURCHASE_ORDERS ?dataSource=dataSource"/>
             <log id="_log1" message="${body}"/>
         </route>
-        <route id="new_purchase_order" shutdownRoute="Defer">
+        <route id="new_purchase_order" streamCache="true">
             <from id="_from1" uri="direct:createnewpo"/>
-            <to id="validate" uri="json-validator:Purchase-Order-Schema.json"/>
-            <setProperty id="_setProperty1" propertyName="typeCode">
+            <log id="_log2" message="${body}"/>
+            <!--             <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES (${property.identifier},${property.typeCode},${property.actionCode},${property.totalAmount})?dataSource=dataSource"/>  -->
+            <!-- <to id="validate" uri="json-validator:Purchase-Order-Schema.json?contentCache=true"/>  -->
+            <setHeader id="_setHeader1" headerName="typeCode">
                 <jsonpath>$.purchaseOrder[0].typeCode</jsonpath>
-            </setProperty>
-            <setProperty id="_setProperty2" propertyName="actioncode">
+            </setHeader>
+            <setHeader id="_setHeader2" headerName="actioncode">
                 <jsonpath>$.purchaseOrder[0].actionCode</jsonpath>
-            </setProperty>
-            <setProperty id="_setProperty3" propertyName="totalAmount">
+            </setHeader>
+            <setHeader id="_setHeader3" headerName="totalAmount">
                 <jsonpath>$.purchaseOrder[0].purchaseOrderHeader.totalAmount</jsonpath>
-            </setProperty>
-            <setProperty id="_setProperty4" propertyName="identifier">
+            </setHeader>
+            <setHeader id="_setHeader4" headerName="identifier">
                 <jsonpath>$.purchaseOrder[0].purchaseOrderHeader.identifier</jsonpath>
-            </setProperty>
-<!--             <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES (${property.identifier},${property.typeCode},${property.actionCode},${property.totalAmount})?dataSource=dataSource"/>  -->
-            <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES ('test1','test2','test3',4.0)?dataSource=dataSource"/>
-
+            </setHeader>
+            <log id="_log3" message="${body}"/>
+<!--             <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES ('test1','test2','test3',4.0)?dataSource=dataSource"/>  -->
+            <to id="_to2" uri="sql:INSERT INTO PURCHASE_ORDERS (IDENTIFIER,TYPE_CODE,ACTION_CODE,TOTAL_AMOUNT) VALUES (:#identifier,:#typeCode,:#actionCode,:#totalAmount)?dataSource=dataSource"/>
         </route>
     </camelContext>
 </beans>
